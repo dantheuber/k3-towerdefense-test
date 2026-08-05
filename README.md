@@ -23,8 +23,17 @@ Defend your **Core** against 40 waves of enemies across three operations. Kills 
 
 All towers have 4 levels, targeting modes (first/last/strong/weak), and sell-back.
 
-### Enemies (7)
+### Enemies (12)
 Grunts, fast Runners, Swarmlings, armored Bulwarks, shielded Aegis units, Splitters that burst into swarmlings, and boss **Warlords** every 10 waves.
+
+Late waves and higher difficulties bring out worse:
+- **Juggernaut** (wave 16+) — 60% armored siege unit that costs 3 lives if it leaks
+- **Wraith** (wave 18+) — immune to slows and freezes
+- **Mender** (Hard+, wave 14+) — heals nearby allies; kill it first
+- **Phase Stalker** (Hard+, wave 21+) — blinks forward every few seconds
+- **Broodmother** (Nightmare, wave 24+) — births swarmlings as it walks
+
+Boss waves on Hard/Nightmare come with Mender and Broodmother escorts.
 
 ### Systems
 - **Interest economy** — unspent gold earns interest each wave; greed is a valid strategy

@@ -26,7 +26,7 @@ const Game = {
       towers: [], enemies: [], projectiles: [], particles: [], texts: [], arcs: [],
       spawnQueue: [],        // {type, t, waveNo}
       waveTime: 0,
-      nextWave: makeWave(1),
+      nextWave: makeWave(1, DIFF_ORDER.indexOf(diffKey)),
       speed: SaveSys.data.settings.speed || 1,
       paused: false,
       placing: null,         // tower type being placed
@@ -121,7 +121,7 @@ const Game = {
       this.banner(`WAVE ${n}`, false);
       Sfx.waveStart();
     }
-    g.nextWave = makeWave(n + 1);
+    g.nextWave = makeWave(n + 1, DIFF_ORDER.indexOf(g.diffKey));
     UI.updateHUD(); UI.updateWaveBar();
   },
 
@@ -146,6 +146,10 @@ const Game = {
       slowFrac: 0, slowUntil: 0,
       frozenUntil: 0, stunUntil: 0,
       poisons: [], toxicSlow: 0,
+      blinkAt: def.blink ? this.time + def.blinkCd : 0,
+      broodAt: def.brood ? this.time + def.broodCd : 0,
+      broodLeft: def.broodCount || 0,
+      healFxAt: 0,
       dead: false,
       wobble: Math.random() * Math.PI * 2,
     });
@@ -481,12 +485,26 @@ const Game = {
       }
       // movement
       let sp = e.spd;
-      if (now < e.frozenUntil || now < e.stunUntil) sp = 0;
+      if (!e.def.ccImmune && (now < e.frozenUntil || now < e.stunUntil)) sp = 0;
       else {
         let slow = e.slowFrac > 0 && now < e.slowUntil ? e.slowFrac : 0;
         if (now >= e.slowUntil) e.slowFrac = 0;
-        if (e.toxicSlow > 0 && e.poisons.length) slow = Math.min(0.9, slow + e.toxicSlow);
+        if (e.def.ccImmune) slow = 0;
+        if (e.toxicSlow > 0 && e.poisons.length && !e.def.ccImmune) slow = Math.min(0.9, slow + e.toxicSlow);
         sp *= (1 - slow);
+      }
+      // phase stalker: blink forward
+      if (e.def.blink && now >= e.blinkAt) {
+        e.blinkAt = now + e.def.blinkCd;
+        e.dist = Math.min(e.dist + e.def.blink * TILE, g.path.total - 1);
+        this.burst(e.x, e.y, e.def.color, 8, 3);
+      }
+      // broodmother: births children as it walks
+      if (e.def.brood && e.broodLeft > 0 && now >= e.broodAt) {
+        e.broodAt = now + e.def.broodCd;
+        e.broodLeft--;
+        this.spawnEnemy(e.def.brood, e.waveNo, Math.max(0, e.dist - 8));
+        this.burst(e.x, e.y, e.def.color, 5, 2);
       }
       e.dist += sp * TILE * dt;
       if (e.dist >= g.path.total) {
@@ -496,6 +514,20 @@ const Game = {
       }
       const pos = this.samplePath(e.dist);
       e.x = pos.x; e.y = pos.y;
+    }
+    // mender: heal nearby allies (not other menders, not bosses' summons cap-free)
+    for (const m of g.enemies) {
+      if (m.dead || !m.def.heal) continue;
+      for (const e of g.enemies) {
+        if (e.dead || e === m || e.def.heal) continue;
+        if (e.hp >= e.maxHp) continue;
+        if (Math.hypot(e.x - m.x, e.y - m.y) > m.def.healR * TILE) continue;
+        e.hp = Math.min(e.maxHp, e.hp + m.def.heal * (1 + 0.1 * (m.waveNo - 1)) * dt);
+        if (now >= m.healFxAt) {
+          m.healFxAt = now + 0.4;
+          this.burst(e.x, e.y, '#34d399', 2, 1.2);
+        }
+      }
     }
     g.enemies = g.enemies.filter(e => !e.dead);
 
@@ -573,11 +605,15 @@ const Game = {
     this.damageEnemy(e, p.dmg, { pierce: p.pierce, crit: p.crit, src: p.src, showText: true });
     Sfx.hit();
     if (p.kind === 'frost') {
-      e.slowFrac = Math.max(e.slowFrac, p.slowFrac);
-      e.slowUntil = this.time + p.slowDur;
-      if (p.freeze > 0 && Math.random() < p.freeze) {
-        e.frozenUntil = this.time + 1;
-        this.ring(e.x, e.y, 24, '#67e8f9');
+      if (e.def.ccImmune) {
+        if (Math.random() < 0.25) this.addText(e.x, e.y - e.r - 6, 'IMMUNE', '#e2e8f0', 10);
+      } else {
+        e.slowFrac = Math.max(e.slowFrac, p.slowFrac);
+        e.slowUntil = this.time + p.slowDur;
+        if (p.freeze > 0 && Math.random() < p.freeze) {
+          e.frozenUntil = this.time + 1;
+          this.ring(e.x, e.y, 24, '#67e8f9');
+        }
       }
       this.burst(p.lx, p.ly, '#67e8f9', 4, 1.5);
     } else if (p.kind === 'venom') {
@@ -1007,6 +1043,46 @@ const Game = {
     ctx.beginPath();
     switch (e.type) {
       case 'tank': ctx.rect(-e.r * 0.85, -e.r * 0.85, e.r * 1.7, e.r * 1.7); break;
+      case 'juggernaut':
+        ctx.rect(-e.r * 0.9, -e.r * 0.9, e.r * 1.8, e.r * 1.8);
+        ctx.moveTo(-e.r * 0.9, -e.r * 0.9); ctx.lineTo(e.r * 0.9, e.r * 0.9);
+        ctx.moveTo(e.r * 0.9, -e.r * 0.9); ctx.lineTo(-e.r * 0.9, e.r * 0.9);
+        break;
+      case 'wraith': {
+        // ghostly trailing diamond
+        const w = Math.sin(e.wobble + now * 6) * 3;
+        ctx.moveTo(0, -e.r); ctx.lineTo(e.r * 0.8, w); ctx.lineTo(0, e.r); ctx.lineTo(-e.r * 0.8, -w);
+        ctx.closePath();
+        break;
+      }
+      case 'mender':
+        // rounded cross
+        ctx.moveTo(-e.r * 0.35, -e.r); ctx.lineTo(e.r * 0.35, -e.r); ctx.lineTo(e.r * 0.35, -e.r * 0.35);
+        ctx.lineTo(e.r, -e.r * 0.35); ctx.lineTo(e.r, e.r * 0.35); ctx.lineTo(e.r * 0.35, e.r * 0.35);
+        ctx.lineTo(e.r * 0.35, e.r); ctx.lineTo(-e.r * 0.35, e.r); ctx.lineTo(-e.r * 0.35, e.r * 0.35);
+        ctx.lineTo(-e.r, e.r * 0.35); ctx.lineTo(-e.r, -e.r * 0.35); ctx.lineTo(-e.r * 0.35, -e.r * 0.35);
+        ctx.closePath();
+        break;
+      case 'stalker': {
+        // four-pointed phase star
+        for (let i = 0; i < 8; i++) {
+          const a = i * Math.PI / 4 + now * 1.5;
+          const rr = i % 2 === 0 ? e.r : e.r * 0.45;
+          const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
+          i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        break;
+      }
+      case 'broodmother': {
+        ctx.arc(0, 0, e.r, 0, Math.PI * 2);
+        // egg sacs
+        ctx.moveTo(e.r * 0.5, 0);
+        ctx.arc(e.r * 0.25, -e.r * 0.3, e.r * 0.28, 0, Math.PI * 2);
+        ctx.moveTo(e.r * 0.1, e.r * 0.5);
+        ctx.arc(-e.r * 0.2, e.r * 0.3, e.r * 0.24, 0, Math.PI * 2);
+        break;
+      }
       case 'runner': {
         const p2 = this.samplePath(Math.min(e.dist + 4, this.g.path.total));
         ctx.rotate(Math.atan2(p2.y - e.y, p2.x - e.x));
@@ -1068,6 +1144,12 @@ const Game = {
       ctx.beginPath(); ctx.arc(0, 0, e.r + 4, 0, Math.PI * 2); ctx.stroke();
       ctx.setLineDash([]);
     }
+    // mender heal aura
+    if (e.def.heal) {
+      ctx.strokeStyle = `rgba(52,211,153,${0.18 + 0.1 * Math.sin(now * 4)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, e.def.healR * TILE, 0, Math.PI * 2); ctx.stroke();
+    }
     ctx.restore();
 
     // hp bar
@@ -1088,16 +1170,21 @@ const Game = {
 };
 
 /* ============================ WAVE GENERATION ============================ */
-function makeWave(n) {
+/* diffLv: 0 normal, 1 hard, 2 nightmare — gates which enemy types can appear. */
+function makeWave(n, diffLv) {
+  diffLv = diffLv || 0;
   if (n % 10 === 0) {
     const groups = [{ type: 'boss', count: n >= 20 ? 1 + Math.floor(n / 20) : 1, gap: 7 }];
     groups.push({ type: 'grunt', count: 4 + Math.floor(n / 3), gap: 0.6 });
     if (n >= 20) groups.push({ type: 'tank', count: Math.max(1, Math.floor(n / 12)), gap: 1.6 });
     if (n >= 30) groups.push({ type: 'shielded', count: 4, gap: 0.9 });
+    if (diffLv >= 1 && n >= 20) groups.push({ type: 'mender', count: 1 + Math.floor(n / 30), gap: 3 });
+    if (diffLv >= 2 && n >= 30) groups.push({ type: 'broodmother', count: 1, gap: 2 });
     return { groups, isBoss: true };
   }
   const budget = 8 + n * 3.7 + Math.max(0, n - FINAL_WAVE) * 6;
-  const avail = Object.keys(ENEMIES).filter(k => !ENEMIES[k].boss && ENEMIES[k].minWave <= n);
+  const avail = Object.keys(ENEMIES).filter(k =>
+    !ENEMIES[k].boss && ENEMIES[k].minWave <= n && (ENEMIES[k].minDiff || 0) <= diffLv);
   const groups = [];
   let b = budget, guard = 0;
   while (b > 0.4 && guard++ < 30) {

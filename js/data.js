@@ -100,7 +100,11 @@ const TOWERS = {
 const TOWER_ORDER = ['arrow', 'cannon', 'frost', 'sniper', 'tesla', 'venom', 'amp'];
 
 /* ============================== ENEMIES ============================== */
-/* spd in tiles/sec. cost = wave-budget points. armor = fraction of physical damage blocked. */
+/* spd in tiles/sec. cost = wave-budget points. armor = fraction of physical damage blocked.
+   minWave = first wave it can appear. minDiff = 0 normal, 1 hard+, 2 nightmare only.
+   heal/healR = regenerates nearby allies' HP per second / radius in tiles.
+   blink/blinkCd = teleports forward N tiles every blinkCd seconds.
+   brood/broodCount/broodCd = spawns children while walking. ccImmune = ignores slow/freeze. */
 const ENEMIES = {
   grunt:    { name: 'Grunt',     hp: 42,  spd: 1.15, armor: 0,    reward: 6,  cost: 1,   group: 5,  gap: 0.85, r: 14, color: '#7ec850', lives: 1, minWave: 1 },
   runner:   { name: 'Runner',    hp: 30,  spd: 2.15, armor: 0,    reward: 7,  cost: 1.4, group: 6,  gap: 0.42, r: 11, color: '#ffd23f', lives: 1, minWave: 2 },
@@ -108,6 +112,14 @@ const ENEMIES = {
   tank:     { name: 'Bulwark',   hp: 270, spd: 0.62, armor: 0.45, reward: 20, cost: 5,   group: 2,  gap: 2.1,  r: 17, color: '#94a3b8', lives: 2, minWave: 6 },
   shielded: { name: 'Aegis',     hp: 75,  spd: 1.0,  armor: 0.1,  reward: 16, cost: 3.2, group: 3,  gap: 1.05, r: 13, color: '#38bdf8', lives: 1, shield: 95, minWave: 9 },
   splitter: { name: 'Splitter',  hp: 105, spd: 0.9,  armor: 0,    reward: 14, cost: 3,   group: 3,  gap: 1.25, r: 14, color: '#fb923c', lives: 1, spawns: 'swarm', spawnCount: 3, minWave: 13 },
+  // --- late-game (all difficulties) ---
+  juggernaut: { name: 'Juggernaut', hp: 950, spd: 0.45, armor: 0.6, reward: 48, cost: 9, group: 1, gap: 3.4, r: 19, color: '#92400e', lives: 3, minWave: 16 },
+  wraith:   { name: 'Wraith',    hp: 95,  spd: 1.85, armor: 0,    reward: 15, cost: 3.2, group: 4,  gap: 0.55, r: 12, color: '#e2e8f0', lives: 1, minWave: 18, ccImmune: true },
+  // --- hard+ only ---
+  mender:   { name: 'Mender',    hp: 170, spd: 0.85, armor: 0.1,  reward: 24, cost: 4.5, group: 2,  gap: 1.5,  r: 13, color: '#34d399', lives: 1, minWave: 14, minDiff: 1, heal: 22, healR: 2.3 },
+  stalker:  { name: 'Phase Stalker', hp: 230, spd: 1.0, armor: 0.15, reward: 28, cost: 5.5, group: 2, gap: 1.7, r: 13, color: '#c026d3', lives: 2, minWave: 21, minDiff: 1, blink: 1.3, blinkCd: 4 },
+  // --- nightmare only ---
+  broodmother: { name: 'Broodmother', hp: 420, spd: 0.58, armor: 0.2, reward: 34, cost: 7, group: 1, gap: 2.6, r: 17, color: '#be185d', lives: 2, minWave: 24, minDiff: 2, brood: 'swarm', broodCount: 6, broodCd: 3 },
   boss:     { name: 'Warlord',   hp: 2200, spd: 0.5, armor: 0.3,  reward: 260, cost: 0,  group: 1,  gap: 1,    r: 22, color: '#ef4444', lives: 5, boss: true, minWave: 999 },
 };
 
