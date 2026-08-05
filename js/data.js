@@ -155,20 +155,30 @@ const TECH = [
   { id: 'o_range', b: 'o', name: 'Long Scopes',         desc: '+5% tower range per rank.', max: 2, costs: [3, 7],        x: 170, y: 425, req: { id: 'o_rate', rank: 1 } },
   { id: 'o_exec',  b: 'o', name: 'Executioner',         desc: 'Towers deal +25% damage to enemies below 35% HP.', max: 1, costs: [12], x: 170, y: 520, req: { id: 'o_crit', rank: 2 } },
   { id: 'u_tesla', b: 'o', name: '⚡ Tesla Research',   desc: 'Unlock the Tesla Coil tower: chain lightning that arcs between enemies.', max: 1, costs: [15], x: 330, y: 215, req: { id: 'o_rate', rank: 2 }, unlock: 'tesla' },
+  { id: 'o_dmg2',  b: 'o', name: 'Heavy Ordnance',      desc: '+10% tower damage per rank.', max: 2, costs: [10, 18],   x: 300, y: 110, req: { id: 'o_dmg', rank: 3 } },
+  { id: 'o_critx', b: 'o', name: 'Lethal Precision',    desc: '+30% critical damage per rank (base 200%).', max: 2, costs: [8, 14], x: 300, y: 320, req: { id: 'o_crit', rank: 2 } },
+  { id: 'o_splash', b: 'o', name: 'Volatile Payload',   desc: '+15% splash damage radius per rank.', max: 2, costs: [6, 12], x: 300, y: 425, req: { id: 'o_range', rank: 2 } },
+  { id: 'o_omega', b: 'o', name: 'Omega Rounds',        desc: '+15% tower damage.', max: 1, costs: [25], x: 300, y: 520, req: { id: 'o_exec', rank: 1 } },
   // --- Defense ---
   { id: 'd_lives', b: 'd', name: 'Reinforced Core',     desc: '+4 starting lives per rank.', max: 3, costs: [2, 4, 8],   x: 460, y: 110, req: null },
   { id: 'd_repair', b: 'd', name: 'Nanite Repair',      desc: 'Restore +1 life every 5 waves per rank.', max: 2, costs: [6, 12], x: 460, y: 215, req: { id: 'd_lives', rank: 1 } },
   { id: 'd_frost', b: 'd', name: 'Cryo Engineering',    desc: 'Slow effects are 15% stronger per rank.', max: 2, costs: [4, 8], x: 460, y: 320, req: { id: 'd_lives', rank: 1 } },
   { id: 'd_last',  b: 'd', name: 'Last Stand',          desc: 'Towers within 3 tiles of the Core deal +25% damage.', max: 1, costs: [10], x: 460, y: 425, req: { id: 'd_repair', rank: 1 } },
   { id: 'u_amp',   b: 'd', name: '◈ Amplifier Research', desc: 'Unlock the Amplifier: a support tower that boosts nearby tower damage.', max: 1, costs: [15], x: 620, y: 320, req: { id: 'd_frost', rank: 1 }, unlock: 'amp' },
+  { id: 'd_lives2', b: 'd', name: 'Bulwark Plating',    desc: '+6 starting lives per rank.', max: 2, costs: [8, 14],   x: 620, y: 110, req: { id: 'd_lives', rank: 3 } },
+  { id: 'd_guard', b: 'd', name: 'Core Shield',         desc: 'Each wave, an energy shield absorbs the first leak per rank — no lives lost.', max: 2, costs: [10, 18], x: 620, y: 215, req: { id: 'd_repair', rank: 2 } },
+  { id: 'd_endure', b: 'd', name: 'Second Wind',        desc: 'Once per run, survive a fatal blow with 1 life remaining.', max: 1, costs: [20], x: 460, y: 520, req: { id: 'd_last', rank: 1 } },
   // --- Economy ---
   { id: 'e_gold',  b: 'e', name: 'War Bonds',           desc: '+50 starting gold per rank.', max: 3, costs: [2, 4, 8],   x: 750, y: 110, req: null },
   { id: 'e_int',   b: 'e', name: 'Compound Interest',   desc: '+2% end-of-wave interest per rank.', max: 3, costs: [4, 8, 14], x: 750, y: 215, req: { id: 'e_gold', rank: 1 } },
   { id: 'e_bounty', b: 'e', name: 'Bounty Hunter',      desc: '+8% gold from kills per rank.', max: 3, costs: [3, 6, 12], x: 750, y: 320, req: { id: 'e_gold', rank: 1 } },
   { id: 'e_disc',  b: 'e', name: 'Efficient Logistics', desc: '-6% tower build & upgrade costs per rank.', max: 2, costs: [5, 10], x: 750, y: 425, req: { id: 'e_bounty', rank: 1 } },
   { id: 'e_salv',  b: 'e', name: 'Salvage Protocol',    desc: '+10% sell refund per rank.', max: 2, costs: [3, 6],       x: 750, y: 520, req: { id: 'e_bounty', rank: 1 } },
-  { id: 'e_core',  b: 'e', name: 'Data Mining',         desc: '+10% cores earned per rank.', max: 3, costs: [5, 10, 20], x: 600, y: 110, req: { id: 'e_gold', rank: 2 } },
+  { id: 'e_core',  b: 'e', name: 'Data Mining',         desc: '+10% cores earned per rank.', max: 3, costs: [5, 10, 20], x: 540, y: 50, req: { id: 'e_gold', rank: 2 } },
   { id: 'u_venom', b: 'e', name: '☠ Venom Research',    desc: 'Unlock the Venom Sprayer: poison damage over time that ignores armor.', max: 1, costs: [15], x: 600, y: 425, req: { id: 'e_disc', rank: 1 }, unlock: 'venom' },
+  { id: 'e_gold2', b: 'e', name: 'War Treasury',        desc: '+75 starting gold per rank.', max: 2, costs: [8, 14],   x: 860, y: 110, req: { id: 'e_gold', rank: 3 } },
+  { id: 'e_int2',  b: 'e', name: 'Hedge Fund',          desc: 'Raises the interest cap by +3% per rank.', max: 2, costs: [8, 14], x: 860, y: 215, req: { id: 'e_int', rank: 3 } },
+  { id: 'e_early', b: 'e', name: 'Risk Dividend',       desc: '+30% early wave-call bonus per rank. Greed has a price: waves overlap.', max: 2, costs: [6, 12], x: 860, y: 320, req: { id: 'e_bounty', rank: 2 } },
 ];
 const TECH_BRANCH_COLORS = { o: '#ff5a5a', d: '#4da3ff', e: '#4ade80' };
 
@@ -199,19 +209,27 @@ function MetaMods() {
     rate: 1 + 0.06 * r('o_rate'),
     range: 1 + 0.05 * r('o_range'),
     crit: 0.05 * r('o_crit'),
+    critDmg: 2 + 0.3 * r('o_critx'),
     exec: r('o_exec') > 0,
-    lives: 4 * r('d_lives'),
+    splash: 1 + 0.15 * r('o_splash'),
+    lives: 4 * r('d_lives') + 6 * r('d_lives2'),
     repair: r('d_repair'),
     frost: 1 + 0.15 * r('d_frost'),
     lastStand: r('d_last') > 0,
-    startGold: 50 * r('e_gold'),
+    coreShield: r('d_guard'),
+    secondWind: r('d_endure') > 0,
+    startGold: 50 * r('e_gold') + 75 * r('e_gold2'),
     interest: 0.05 + 0.02 * r('e_int'),
+    interestCap: 0.25 + 0.03 * r('e_int2'),
     bounty: 1 + 0.08 * r('e_bounty'),
     discount: Math.max(0.5, 1 - 0.06 * r('e_disc')),
     salvage: 0.7 + 0.1 * r('e_salv'),
+    earlyBonus: 1 + 0.3 * r('e_early'),
     coreGain: (1 + 0.1 * r('e_core')) * (1 + 0.01 * (SaveSys.data.level - 1)),
     unlocks: { tesla: r('u_tesla') > 0, venom: r('u_venom') > 0, amp: r('u_amp') > 0 },
   };
+  m.dmg *= 1 + 0.1 * r('o_dmg2');
+  if (r('o_omega') > 0) m.dmg *= 1.15;
   if (A.slayer) m.dmg *= 1.02;
   if (A.nightmare_win) m.coreGain *= 1.03;
   if (A.tycoon) m.bounty *= 1.03;

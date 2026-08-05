@@ -300,7 +300,7 @@ const UI = {
     btn.style.display = '';
     if (g.state === 'wave') {
       const n = g.wave + 1;
-      const bonus = 15 + n * 2;
+      const bonus = Math.round((15 + n * 2) * g.mods.earlyBonus);
       btn.className = 'btn btn-wave early';
       btn.innerHTML = `⏩ CALL WAVE ${n} EARLY (+${bonus}g)`;
     } else {

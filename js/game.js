@@ -34,6 +34,7 @@ const Game = {
       hoverTile: null,
       shake: 0,
       corePts: 0,
+      coreShield: 0, secondWindUsed: false,
       kills: 0, goldEarned: 0,
       bossBannerShown: false,
     };
@@ -95,11 +96,12 @@ const Game = {
     g.wave = n;
     g.state = 'wave';
     if (early) {
-      const bonus = 15 + n * 2;
+      const bonus = Math.round((15 + n * 2) * g.mods.earlyBonus);
       g.gold += bonus; g.goldEarned += bonus;
       this.addText(W / 2, 60, `Early call +${bonus}g`, '#ffd23f', 18);
     }
-    // flatten groups into timed spawn queue, appended after existing queue
+    // flatten groups into timed spawn queue, merged by time so early-called
+    // waves overlap the wave still spawning (greed has a price)
     let cursor = g.waveTime + 0.3;
     for (const grp of w.groups) {
       const def = ENEMIES[grp.type];
@@ -109,6 +111,9 @@ const Game = {
       }
       cursor += 1.2;
     }
+    g.spawnQueue.sort((a, b) => a.t - b.t);
+    // core shield recharges each wave
+    g.coreShield = g.mods.coreShield;
     if (w.isBoss) {
       this.banner(`⚠ BOSS WAVE ${n} ⚠`, true);
       Sfx.bossWarn();
@@ -124,7 +129,7 @@ const Game = {
     const g = this.g;
     const def = ENEMIES[type];
     const n = waveNo;
-    let hpScale = (1 + 0.17 * (n - 1)) * g.diff.hp;
+    let hpScale = (1 + 0.19 * (n - 1)) * g.diff.hp;
     if (n > FINAL_WAVE) hpScale *= Math.pow(1.12, n - FINAL_WAVE);
     if (def.boss) hpScale *= (1 + (Math.floor(n / 10) - 1) * 0.6);
     const pos = this.samplePath(distOverride || 0);
@@ -161,7 +166,7 @@ const Game = {
   onWaveCleared(w) {
     const g = this.g;
     const bonus = 15 + w * 4;
-    const interest = Math.floor(g.gold * Math.min(g.mods.interest, 0.25));
+    const interest = Math.floor(g.gold * Math.min(g.mods.interest, g.mods.interestCap));
     g.gold += bonus + interest;
     g.goldEarned += bonus + interest;
     g.corePts += (w <= FINAL_WAVE ? 2 : 1) * g.map.mult * g.diff.mult;
@@ -272,7 +277,7 @@ const Game = {
       dmg: d.dmg[i] * dmgMul,
       rate: d.rate[i] * m.rate * (1 + rateAura),
       range: d.range[i] * TILE * m.range,
-      splash: d.splash ? d.splash[i] * TILE : 0,
+      splash: d.splash ? d.splash[i] * TILE * m.splash : 0,
       slow: d.slow ? Math.min(0.85, d.slow[i] * m.frost) : 0,
       slowDur: d.slowDur ? d.slowDur[i] : 0,
       freeze: d.freeze ? d.freeze[i] : 0,
@@ -312,7 +317,7 @@ const Game = {
     if (!target) return;
     t.angle = Math.atan2(target.y - t.y, target.x - t.x);
     const crit = Math.random() < g.mods.crit;
-    const dmg = st.dmg * (crit ? 2 : 1);
+    const dmg = st.dmg * (crit ? g.mods.critDmg : 1);
     Sfx.shoot(t.type);
 
     if (t.type === 'tesla') {
@@ -415,6 +420,13 @@ const Game = {
 
   leak(e) {
     const g = this.g;
+    if (g.coreShield > 0) {
+      g.coreShield--;
+      this.addText(e.x, e.y, 'CORE SHIELD', '#38bdf8', 16);
+      this.ring(e.x, e.y, 30, '#38bdf8');
+      Sfx.hit();
+      return;
+    }
     g.lives -= e.lives;
     SaveSys.data.stats.leaks++;
     g.shake = Math.max(g.shake, 8);
@@ -424,8 +436,15 @@ const Game = {
     setTimeout(() => v.classList.remove('hit'), 120);
     this.addText(e.x, e.y, `-${e.lives} ❤`, '#ff5a5a', 18);
     if (g.lives <= 0) {
-      g.lives = 0;
-      this.endRun(false);
+      if (g.mods.secondWind && !g.secondWindUsed) {
+        g.secondWindUsed = true;
+        g.lives = 1;
+        this.banner('SECOND WIND — CORE HOLDS AT 1 ❤', false);
+        Sfx.bossWarn();
+      } else {
+        g.lives = 0;
+        this.endRun(false);
+      }
     }
     UI.updateHUD();
   },
@@ -1077,7 +1096,7 @@ function makeWave(n) {
     if (n >= 30) groups.push({ type: 'shielded', count: 4, gap: 0.9 });
     return { groups, isBoss: true };
   }
-  const budget = 7 + n * 3.2 + Math.max(0, n - FINAL_WAVE) * 6;
+  const budget = 8 + n * 3.7 + Math.max(0, n - FINAL_WAVE) * 6;
   const avail = Object.keys(ENEMIES).filter(k => !ENEMIES[k].boss && ENEMIES[k].minWave <= n);
   const groups = [];
   let b = budget, guard = 0;
