@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COREFALL — Tower Defense</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ MAIN MENU ============ -->
+  <div id="screen-menu" class="screen active">
+    <div class="menu-stars" id="menu-stars"></div>
+    <div class="menu-inner">
+      <h1 class="game-title">CORE<span>FALL</span></h1>
+      <div class="game-sub">TOWER DEFENSE PROTOCOL</div>
+      <div class="profile-card" id="profile-summary"></div>
+      <div class="menu-buttons">
+        <button class="btn btn-big" id="btn-play">▶ &nbsp;DEPLOY</button>
+        <button class="btn" id="btn-tech">⬡ &nbsp;TECH TREE</button>
+        <button class="btn" id="btn-ach">★ &nbsp;ACHIEVEMENTS</button>
+        <button class="btn" id="btn-help">? &nbsp;HOW TO PLAY</button>
+      </div>
+      <div class="menu-footer">
+        <button class="btn btn-small btn-danger" id="btn-reset">Reset Save</button>
+        <button class="btn btn-small" id="btn-mute">🔊 Sound</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MAP SELECT ============ -->
+  <div id="screen-maps" class="screen">
+    <div class="screen-head">
+      <button class="btn btn-back" data-back>◀ BACK</button>
+      <h2>SELECT OPERATION</h2>
+      <div class="head-cores">⬢ <span id="maps-cores">0</span></div>
+    </div>
+    <div id="map-list" class="map-list"></div>
+  </div>
+
+  <!-- ============ TECH TREE ============ -->
+  <div id="screen-tech" class="screen">
+    <div class="screen-head">
+      <button class="btn btn-back" data-back>◀ BACK</button>
+      <h2>TECH TREE</h2>
+      <div class="head-cores">⬢ <span id="tech-cores">0</span> cores</div>
+    </div>
+    <div class="tech-wrap">
+      <canvas id="tech-canvas" width="920" height="600"></canvas>
+      <div id="tech-tooltip" class="tech-tooltip hidden"></div>
+    </div>
+    <div class="tech-legend">
+      <span><i class="dot" style="background:#ff5a5a"></i> Offense</span>
+      <span><i class="dot" style="background:#4da3ff"></i> Defense</span>
+      <span><i class="dot" style="background:#4ade80"></i> Economy</span>
+      <span class="dim">Click a node to purchase / upgrade</span>
+    </div>
+  </div>
+
+  <!-- ============ ACHIEVEMENTS ============ -->
+  <div id="screen-ach" class="screen">
+    <div class="screen-head">
+      <button class="btn btn-back" data-back>◀ BACK</button>
+      <h2>ACHIEVEMENTS</h2>
+      <div class="head-cores" id="ach-count"></div>
+    </div>
+    <div id="ach-list" class="ach-list"></div>
+  </div>
+
+  <!-- ============ HELP ============ -->
+  <div id="screen-help" class="screen">
+    <div class="screen-head">
+      <button class="btn btn-back" data-back>◀ BACK</button>
+      <h2>FIELD MANUAL</h2>
+    </div>
+    <div class="help-body">
+      <div class="help-col">
+        <h3>OBJECTIVE</h3>
+        <p>Enemies march along the glowing path toward your <b>Core</b>. Build towers to destroy them before they arrive. Each leak costs lives — lose them all and the Core falls.</p>
+        <h3>ECONOMY</h3>
+        <p>Kills and wave bonuses earn gold. At the end of every wave you earn <b>interest</b> on your gold reserves — saving is a strategy. Calling the next wave <b>early</b> grants bonus gold.</p>
+        <h3>META PROGRESSION</h3>
+        <p>Every run — win or lose — earns <b>⬢ cores</b> and XP. Spend cores in the Tech Tree on permanent upgrades and new towers. Win maps to unlock new operations and harder difficulties with bigger rewards. Achievements grant permanent buffs.</p>
+      </div>
+      <div class="help-col">
+        <h3>CONTROLS</h3>
+        <p class="keys">
+          <b>1–7</b> select tower &nbsp;·&nbsp; <b>Click</b> place / select<br>
+          <b>Right-click / Esc</b> cancel &nbsp;·&nbsp; <b>Space</b> next wave<br>
+          <b>F</b> game speed &nbsp;·&nbsp; <b>P</b> pause &nbsp;·&nbsp; <b>M</b> mute
+        </p>
+        <h3>TACTICS</h3>
+        <p>• <b>Armor</b> (grey plating) reduces physical damage — poison ignores it.<br>
+        • <b>Shields</b> (cyan) must be broken before HP takes damage.<br>
+        • <b>Splitters</b> burst into swarmlings — bring splash.<br>
+        • <b>Bosses</b> arrive every 10 waves. Focus fire and slows win wars.<br>
+        • Selling refunds part of a tower's total investment.<br>
+        • The <b>Amplifier</b> boosts adjacent towers — cluster your killers.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GAME ============ -->
+  <div id="screen-game" class="screen">
+    <div id="game-left">
+      <div id="game-topbar">
+        <div class="res" title="Gold">🪙 <span id="hud-gold">0</span></div>
+        <div class="res" title="Lives">❤ <span id="hud-lives">0</span></div>
+        <div class="res" title="Wave">🌊 <span id="hud-wave">0</span></div>
+        <div class="res cores" title="Cores earned this run">⬢ <span id="hud-cores">0</span></div>
+        <div class="spacer"></div>
+        <button class="btn btn-small" id="hud-speed" title="Game speed (F)">1×</button>
+        <button class="btn btn-small" id="hud-pause" title="Pause (P)">⏸</button>
+        <button class="btn btn-small" id="hud-mute" title="Mute (M)">🔊</button>
+        <button class="btn btn-small btn-danger" id="hud-quit" title="Abandon run">✕</button>
+      </div>
+      <div id="canvas-wrap">
+        <canvas id="game-canvas" width="768" height="528"></canvas>
+        <div id="game-banner" class="hidden"></div>
+        <div id="damage-vignette"></div>
+      </div>
+      <div id="wave-bar">
+        <button class="btn btn-wave" id="btn-wave">▶ START WAVE 1</button>
+        <div id="wave-preview"></div>
+      </div>
+    </div>
+    <aside id="sidebar">
+      <div id="tower-palette"></div>
+      <div id="selection-panel"><div class="sel-hint">Select a tower from the palette, then click a build pad on the map.<br><br>Click a placed tower to inspect, upgrade, or sell it.</div></div>
+    </aside>
+  </div>
+
+  <!-- ============ RESULTS MODAL ============ -->
+  <div id="modal" class="hidden">
+    <div id="modal-card">
+      <h2 id="modal-title">VICTORY</h2>
+      <div id="modal-body"></div>
+      <div id="modal-buttons"></div>
+    </div>
+  </div>
+
+  <div id="toast-wrap"></div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/save.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
