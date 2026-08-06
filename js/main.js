@@ -109,6 +109,15 @@
     Game.startWave(g.state === 'wave');
     UI.updateWaveBar();
   };
+  document.getElementById('btn-autostart').onclick = () => {
+    const g = Game.g;
+    if (!g || g.ended || !g.endless) return;
+    g.autoStart = !g.autoStart;
+    if (!g.autoStart) g.autoTimer = 0;
+    else if (g.state === 'build') g.autoTimer = 5;
+    UI.updateWaveBar();
+    Sfx.ui();
+  };
   document.getElementById('hud-speed').onclick = cycleSpeed;
   document.getElementById('hud-pause').onclick = togglePause;
   document.getElementById('hud-mute').onclick = toggleMute;
@@ -173,7 +182,11 @@
       Game.update(dt);
       Game.render();
       hudTimer += dt;
-      if (hudTimer > 0.15) { hudTimer = 0; UI.updateHUD(); }
+      if (hudTimer > 0.15) {
+        hudTimer = 0;
+        UI.updateHUD();
+        if (Game.g.autoTimer > 0) UI.updateWaveBar(); // live countdown
+      }
     }
     requestAnimationFrame(loop);
   }

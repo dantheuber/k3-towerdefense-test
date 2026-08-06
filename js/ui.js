@@ -296,8 +296,17 @@ const UI = {
     const g = Game.g;
     const btn = this.$('btn-wave');
     const prev = this.$('wave-preview');
-    if (!g || g.ended) { btn.style.display = 'none'; prev.innerHTML = ''; return; }
+    const autoBtn = this.$('btn-autostart');
+    if (!g || g.ended) { btn.style.display = 'none'; autoBtn.style.display = 'none'; prev.innerHTML = ''; return; }
     btn.style.display = '';
+    // endless-only auto-start toggle
+    if (g.endless) {
+      autoBtn.style.display = '';
+      autoBtn.classList.toggle('on', g.autoStart);
+      autoBtn.textContent = `🔁 AUTO: ${g.autoStart ? 'ON' : 'OFF'}`;
+    } else {
+      autoBtn.style.display = 'none';
+    }
     if (g.state === 'wave') {
       const n = g.wave + 1;
       const bonus = Math.round((15 + n * 2) * g.mods.earlyBonus);
@@ -305,7 +314,9 @@ const UI = {
       btn.innerHTML = `⏩ CALL WAVE ${n} EARLY (+${bonus}g)`;
     } else {
       btn.className = 'btn btn-wave';
-      btn.innerHTML = `▶ START WAVE ${g.wave + 1}${g.wave + 1 === FINAL_WAVE ? ' (FINAL)' : ''}`;
+      btn.innerHTML = g.autoTimer > 0
+        ? `▶ WAVE ${g.wave + 1} IN ${Math.ceil(g.autoTimer)}…`
+        : `▶ START WAVE ${g.wave + 1}${g.wave + 1 === FINAL_WAVE ? ' (FINAL)' : ''}`;
     }
     // preview of next wave
     const w = g.nextWave;

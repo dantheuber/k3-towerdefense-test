@@ -26,6 +26,8 @@ const Game = {
       towers: [], enemies: [], projectiles: [], particles: [], texts: [], arcs: [],
       spawnQueue: [],        // {type, t, waveNo}
       waveTime: 0,
+      autoStart: false,      // endless: auto-send next wave
+      autoTimer: 0,          // countdown (real seconds) until auto-start
       nextWave: makeWave(1, DIFF_ORDER.indexOf(diffKey)),
       speed: SaveSys.data.settings.speed || 1,
       paused: false,
@@ -95,6 +97,7 @@ const Game = {
     const w = g.nextWave;
     g.wave = n;
     g.state = 'wave';
+    g.autoTimer = 0;
     if (early) {
       const bonus = Math.round((15 + n * 2) * g.mods.earlyBonus);
       g.gold += bonus; g.goldEarned += bonus;
@@ -188,6 +191,7 @@ const Game = {
     }
     if (g.wave === g.clearedUpTo) {
       g.state = 'build';
+      if (g.endless && g.autoStart) g.autoTimer = 5;
     }
     UI.updateHUD(); UI.updateWaveBar();
   },
@@ -467,6 +471,15 @@ const Game = {
       while (g.spawnQueue.length && g.spawnQueue[0].t <= g.waveTime) {
         const q = g.spawnQueue.shift();
         this.spawnEnemy(q.type, q.waveNo);
+      }
+    }
+
+    // endless auto-start countdown (real seconds, ignores game speed)
+    if (g.autoTimer > 0) {
+      g.autoTimer -= rawDt;
+      if (g.autoTimer <= 0) {
+        g.autoTimer = 0;
+        this.startWave(false);
       }
     }
 

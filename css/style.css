@@ -199,6 +199,8 @@ body {
 .btn-wave { flex-shrink: 0; background: linear-gradient(180deg, #14532d, #0d3a1f); border-color: #2f7a4d; min-width: 190px; }
 .btn-wave:hover { border-color: var(--green); box-shadow: 0 0 14px rgba(74,222,128,.35); }
 .btn-wave.early { background: linear-gradient(180deg, #7c2d12, #4a1a08); border-color: #c2410c; }
+.btn-autostart { flex-shrink: 0; }
+.btn-autostart.on { border-color: var(--green); color: var(--green); box-shadow: 0 0 10px rgba(74,222,128,.3); }
 #wave-preview { font-size: 14px; color: var(--dim); display: flex; gap: 10px; flex-wrap: wrap; }
 #wave-preview .wp-enemy { display: flex; align-items: center; gap: 4px; }
 #wave-preview .wp-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
