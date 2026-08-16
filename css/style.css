@@ -239,10 +239,23 @@ body {
 .sel-stats .stat-v { float: right; color: var(--core); font-weight: 700; }
 .sel-stats .stat-up { color: var(--green); }
 .sel-special { color: var(--gold); font-size: 13px; margin: 6px 0; line-height: 1.35; }
-.sel-buttons { display: flex; gap: 8px; margin-top: 10px; }
+.sel-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .sel-buttons .btn { flex: 1; padding: 8px 4px; font-size: 14px; }
 .btn-upgrade { background: linear-gradient(180deg, #14532d, #0d3a1f); border-color: #2f7a4d; }
 .btn-sell { background: linear-gradient(180deg, #5b2121, #3a1414); border-color: #7a2d2d; }
+/* tier-5 specialization picker */
+.variant-title { flex-basis: 100%; font-size: 11px; letter-spacing: .1em; color: var(--gold); margin-bottom: -2px; }
+.variant-btn {
+  flex-basis: 100%; text-align: left; padding: 7px 9px; font-family: inherit;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
+  color: var(--text); cursor: pointer;
+}
+.variant-btn b { display: flex; justify-content: space-between; color: var(--gold); font-size: 13px; }
+.variant-btn .variant-cost { color: var(--dim); font-weight: 600; }
+.variant-btn i { display: block; font-style: normal; color: var(--dim); font-size: 11px; margin-top: 2px; line-height: 1.35; }
+.variant-btn:hover:not(:disabled) { border-color: var(--accent); }
+.variant-btn:disabled { opacity: .45; cursor: not-allowed; }
+.variant-tag { color: var(--accent); font-weight: 700; }
 .target-modes { display: flex; gap: 5px; margin-top: 8px; }
 .target-modes button {
   flex: 1; background: var(--panel2); border: 1px solid var(--line); color: var(--dim);

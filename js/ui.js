@@ -170,7 +170,7 @@ const UI = {
       ctx.fillStyle = '#fff';
       ctx.textAlign = 'center';
       ctx.font = '700 15px Rajdhani, sans-serif';
-      const label = n.unlock ? TOWERS[n.unlock].icon : n.name.split(' ').map(w => w[0]).join('').slice(0, 2);
+      const label = n.unlock ? TOWERS[n.unlock].icon : n.spec ? TOWERS[n.spec].icon : n.name.split(' ').map(w => w[0]).join('').slice(0, 2);
       ctx.fillText(label, n.x, n.y + 5);
       // rank pips
       for (let i = 0; i < n.max; i++) {
@@ -290,6 +290,11 @@ const UI = {
       if (t.level >= 4) { upBtn.disabled = true; upBtn.textContent = 'MAX LEVEL'; }
       else { upBtn.disabled = g.gold < Game.upgradeCost(t); upBtn.innerHTML = `⬆ Upgrade 🪙${Game.upgradeCost(t)}`; }
     }
+    // tier-5 variant buttons
+    document.querySelectorAll('.variant-btn').forEach(b => {
+      if (b.dataset.locked) return;
+      b.disabled = g.gold < Number(b.dataset.cost);
+    });
   },
 
   updateWaveBar() {
@@ -337,6 +342,7 @@ const UI = {
     const g = Game.g;
     const def = t.def;
     const st = Game.towerStats(t);
+    const v = Game.variantOf(t);
     const i = t.level - 1;
     const stat = (label, val, next) =>
       `<div>${label}<span class="stat-v">${val}${next ? ` <span class="stat-up">→${next}</span>` : ''}</span></div>`;
@@ -345,6 +351,7 @@ const UI = {
       statsHtml += stat('Damage aura', '+' + Math.round(st.aura * 100) + '%', t.level < 4 ? '+' + Math.round(def.aura[i + 1] * 100) + '%' : null);
       statsHtml += stat('Aura radius', (st.range / TILE).toFixed(1), t.level < 4 ? def.range[i + 1].toFixed(1) : null);
       if (t.level < 4 && def.rateAura[i + 1]) statsHtml += stat('Next: rate aura', '+0%', '+' + Math.round(def.rateAura[i + 1] * 100) + '%');
+      if (v && st.rateAura) statsHtml += stat('Rate aura', '+' + Math.round(st.rateAura * 100) + '%');
     } else {
       const dps = Math.round(st.dmg * st.rate * (st.multi || 1));
       statsHtml += stat('Damage', Math.round(st.dmg), t.level < 4 ? Math.round(def.dmg[i + 1] * g.mods.dmg) : null);
@@ -356,23 +363,42 @@ const UI = {
       if (st.chain) statsHtml += stat('Chains', st.chain);
       if (st.poisonDps) statsHtml += stat('Poison', Math.round(st.poisonDps) + '/s');
     }
-    const special = def.special[i];
+    const special = v ? v.special : def.special[i];
     const nextSpecial = t.level < 4 ? def.special[i + 1] : null;
+    // action area: normal upgrade button, tier-5 variant picker, or sell-only once specialized
+    let actionHtml;
+    if (v) {
+      actionHtml = `<div class="variant-title">SPECIALIZED — ${v.icon} ${v.name}</div>`;
+    } else if (t.level >= 4 && def.variants) {
+      const unlocked = g.mods.specs[t.type];
+      const specNode = TECH.find(n => n.spec === t.type);
+      actionHtml = `<div class="variant-title">${unlocked ? '✦ TIER-5 SPECIALIZATION' : `🔒 Unlock “${specNode.name}” in the Tech Tree`}</div>` +
+        def.variants.map(x =>
+          `<button class="variant-btn" data-vid="${x.id}" data-cost="${Game.variantCost(x)}"${unlocked ? '' : ' data-locked="1" disabled'}>` +
+          `<b>${x.icon} ${x.name}<span class="variant-cost">🪙 ${Game.variantCost(x)}</span></b>` +
+          `<i>${x.desc}</i></button>`).join('');
+    } else {
+      actionHtml = `<button class="btn btn-upgrade" id="sel-upgrade"></button>`;
+    }
     panel.innerHTML =
       `<div class="sel-title"><span class="pal-icon" style="background:${def.color}22;color:${def.color}">${def.icon}</span>${def.name}</div>` +
-      `<div class="sel-level">${'★'.repeat(t.level)}${'☆'.repeat(4 - t.level)} &nbsp;·&nbsp; ${t.kills} kills</div>` +
+      `<div class="sel-level">${'★'.repeat(t.level)}${'☆'.repeat(4 - t.level)}${v ? ` <span class="variant-tag">${v.icon} ${v.name}</span>` : ''} &nbsp;·&nbsp; ${t.kills} kills</div>` +
       `<div class="sel-stats">${statsHtml}</div>` +
       (special ? `<div class="sel-special">✦ ${special}</div>` : '') +
       (nextSpecial ? `<div class="sel-special" style="color:var(--dim)">Next: ${nextSpecial}</div>` : '') +
       `<div class="sel-buttons">` +
-      `<button class="btn btn-upgrade" id="sel-upgrade"></button>` +
+      actionHtml +
       `<button class="btn btn-sell" id="sel-sell">Sell 🪙${Math.round(Game.investedIn(t) * g.mods.salvage)}</button>` +
       `</div>` +
       (def.support ? '' : `<div class="target-modes" id="target-modes">` +
         ['first', 'last', 'strong', 'weak'].map(m =>
           `<button data-mode="${m}" class="${t.mode === m ? 'active' : ''}">${m.toUpperCase()}</button>`).join('') +
         `</div>`);
-    this.$('sel-upgrade').onclick = () => Game.upgradeTower(t);
+    const upBtn = this.$('sel-upgrade');
+    if (upBtn) upBtn.onclick = () => Game.upgradeTower(t);
+    panel.querySelectorAll('.variant-btn').forEach(b => {
+      b.onclick = () => { if (Game.applyVariant(t, b.dataset.vid)) Sfx.ui(); };
+    });
     this.$('sel-sell').onclick = () => Game.sellTower(t);
     const tm = this.$('target-modes');
     if (tm) tm.querySelectorAll('button').forEach(b => {

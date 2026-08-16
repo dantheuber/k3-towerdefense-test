@@ -207,6 +207,7 @@ const Game = {
     const def = TOWERS[t.type];
     let sum = def.cost;
     for (let i = 0; i < t.level - 1; i++) sum += def.upcosts[i];
+    if (t.variant) sum += def.variants.find(v => v.id === t.variant).cost;
     return Math.round(sum * this.g.mods.discount);
   },
 
@@ -227,7 +228,7 @@ const Game = {
     g.towers.push({
       type, def, tx, ty,
       x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2,
-      level: 1, cool: 0, angle: -Math.PI / 2, target: null, mode: 'first',
+      level: 1, variant: null, cool: 0, angle: -Math.PI / 2, target: null, mode: 'first',
       kills: 0, dmgDone: 0,
     });
     SaveSys.data.stats.towersBuilt++;
@@ -250,6 +251,32 @@ const Game = {
     return true;
   },
 
+  variantCost(v) {
+    return Math.round(v.cost * this.g.mods.discount);
+  },
+
+  variantOf(t) {
+    return t.variant ? t.def.variants.find(v => v.id === t.variant) : null;
+  },
+
+  /* Tier-5 specialization: pick one of two variants at level 4 (tech-gated). */
+  applyVariant(t, vid) {
+    const g = this.g;
+    if (t.level < 4 || t.variant || !t.def.variants) return false;
+    if (!g.mods.specs[t.type]) return false;
+    const v = t.def.variants.find(x => x.id === vid);
+    if (!v) return false;
+    const cost = this.variantCost(v);
+    if (g.gold < cost) return false;
+    g.gold -= cost;
+    t.variant = vid;
+    Sfx.upgrade();
+    this.burst(t.x, t.y, t.def.color, 20, 3.5);
+    this.ring(t.x, t.y, 32, '#ffd23f');
+    UI.updateHUD(); UI.showSelection(t);
+    return true;
+  },
+
   sellTower(t) {
     const g = this.g;
     const refund = Math.round(this.investedIn(t) * g.mods.salvage);
@@ -264,15 +291,20 @@ const Game = {
 
   towerStats(t) {
     const g = this.g, d = t.def, i = t.level - 1, m = g.mods;
+    const v = this.variantOf(t);
+    const vs = v ? v.stats : null;
+    const flags = v && v.flags ? v.flags : {};
+    // variant stats are flat values; base stats are per-level arrays
+    const pick = (arr, key, dflt) => vs ? (vs[key] !== undefined ? vs[key] : dflt) : (arr ? arr[i] : dflt);
     // amplifier aura (max, not stacked)
     let aura = 0, rateAura = 0;
     if (!d.support) {
       for (const o of g.towers) {
         if (!o.def.support) continue;
-        const or = o.def.range[o.level - 1] * TILE;
-        if (Math.hypot(o.x - t.x, o.y - t.y) <= or) {
-          aura = Math.max(aura, o.def.aura[o.level - 1]);
-          rateAura = Math.max(rateAura, o.def.rateAura[o.level - 1]);
+        const ost = this.towerStats(o);
+        if (Math.hypot(o.x - t.x, o.y - t.y) <= ost.range) {
+          aura = Math.max(aura, ost.aura);
+          rateAura = Math.max(rateAura, ost.rateAura);
         }
       }
     }
@@ -282,22 +314,33 @@ const Game = {
       if (Math.hypot(c.x - t.tx, c.y - t.ty) <= 3.2) dmgMul *= 1.25;
     }
     return {
-      dmg: d.dmg[i] * dmgMul,
-      rate: d.rate[i] * m.rate * (1 + rateAura),
-      range: d.range[i] * TILE * m.range,
-      splash: d.splash ? d.splash[i] * TILE * m.splash : 0,
-      slow: d.slow ? Math.min(0.85, d.slow[i] * m.frost) : 0,
-      slowDur: d.slowDur ? d.slowDur[i] : 0,
-      freeze: d.freeze ? d.freeze[i] : 0,
-      stun: d.stun ? d.stun[i] : 0,
-      pierce: d.pierce ? d.pierce[i] : false,
-      chain: d.chain ? d.chain[i] : 0,
-      falloff: d.falloff ? d.falloff[i] : 0,
-      poisonDps: d.poisonDps ? d.poisonDps[i] * m.dmg : 0,
-      poisonDur: d.poisonDur ? d.poisonDur[i] : 0,
-      toxicSlow: d.toxicSlow ? d.toxicSlow[i] : 0,
-      multi: d.multi ? d.multi[i] : 1,
-      aura: d.aura ? d.aura[i] : 0,
+      dmg: pick(d.dmg, 'dmg', 0) * dmgMul,
+      rate: pick(d.rate, 'rate', 0) * m.rate * (1 + rateAura),
+      range: pick(d.range, 'range', 0) * TILE * m.range,
+      splash: pick(d.splash, 'splash', 0) * TILE * m.splash,
+      slow: Math.min(0.85, pick(d.slow, 'slow', 0) * m.frost),
+      slowDur: pick(d.slowDur, 'slowDur', 0),
+      freeze: pick(d.freeze, 'freeze', 0),
+      stun: pick(d.stun, 'stun', 0),
+      pierce: vs ? !!vs.pierce : (d.pierce ? d.pierce[i] : false),
+      chain: pick(d.chain, 'chain', 0),
+      falloff: pick(d.falloff, 'falloff', 0),
+      chainR: (vs && vs.chainR !== undefined ? vs.chainR : 2.3) * TILE,
+      poisonDps: pick(d.poisonDps, 'poisonDps', 0) * m.dmg,
+      poisonDur: pick(d.poisonDur, 'poisonDur', 0),
+      toxicSlow: pick(d.toxicSlow, 'toxicSlow', 0),
+      multi: vs ? (vs.multi || 1) : (d.multi ? d.multi[i] : 1),
+      aura: pick(d.aura, 'aura', 0),
+      rateAura: pick(d.rateAura, 'rateAura', 0),
+      // variant behavior flags
+      critBonus: flags.critBonus || 0,
+      spread: !!flags.spread,
+      linePierce: !!flags.linePierce,
+      shatter: flags.shatter || 0,
+      plague: flags.plague || 0,
+      meltArmor: flags.meltArmor || 0,
+      shieldShred: flags.shieldShred || 0,
+      openingBonus: flags.openingBonus || 0,
     };
   },
 
@@ -324,9 +367,29 @@ const Game = {
     const target = t.target;
     if (!target) return;
     t.angle = Math.atan2(target.y - t.y, target.x - t.x);
-    const crit = Math.random() < g.mods.crit;
-    const dmg = st.dmg * (crit ? g.mods.critDmg : 1);
+    const crit = Math.random() < g.mods.crit + st.critBonus;
+    let dmg = st.dmg * (crit ? g.mods.critDmg : 1);
+    if (st.openingBonus && target.hp > target.maxHp * 0.6) dmg *= 1 + st.openingBonus;
     Sfx.shoot(t.type);
+
+    if (st.linePierce) {
+      // railgun: instant slug that hits every enemy along the firing line
+      const ex = t.x + Math.cos(t.angle) * st.range, ey = t.y + Math.sin(t.angle) * st.range;
+      const dx = ex - t.x, dy = ey - t.y;
+      const len2 = dx * dx + dy * dy;
+      for (const e of g.enemies) {
+        if (e.dead) continue;
+        const tp = ((e.x - t.x) * dx + (e.y - t.y) * dy) / len2;
+        if (tp < 0 || tp > 1) continue;
+        const px = t.x + tp * dx, py = t.y + tp * dy;
+        if (Math.hypot(e.x - px, e.y - py) <= e.r + 10) {
+          this.damageEnemy(e, dmg, { pierce: true, crit, src: t, showText: true });
+        }
+      }
+      g.arcs.push({ pts: [{ x: t.x, y: t.y }, { x: ex, y: ey }], ttl: 0.18, color: 'rgba(244,114,182,0.95)', width: 3.5 });
+      this.burst(t.x + Math.cos(t.angle) * 20, t.y + Math.sin(t.angle) * 20, '#f472b6', 5, 2);
+      return;
+    }
 
     if (t.type === 'tesla') {
       // instant chain lightning
@@ -338,7 +401,7 @@ const Game = {
         hitSet.add(cur);
         this.damageEnemy(cur, dmgNow, { pierce: true, crit, src: t });
         dmgNow *= st.falloff;
-        let next = null, nd = 2.3 * TILE;
+        let next = null, nd = st.chainR;
         for (const e of g.enemies) {
           if (e.dead || hitSet.has(e)) continue;
           const dd = Math.hypot(e.x - cur.x, e.y - cur.y);
@@ -363,15 +426,26 @@ const Game = {
     }
 
     const count = st.multi || 1;
+    // spread volleys seek a different target per projectile
+    const targets = [target];
+    if (st.spread && count > 1) {
+      for (const e of g.enemies) {
+        if (targets.length >= count) break;
+        if (e.dead || targets.includes(e)) continue;
+        if (Math.hypot(e.x - t.x, e.y - t.y) <= st.range) targets.push(e);
+      }
+    }
     for (let k = 0; k < count; k++) {
+      const tk = targets[k] || target;
       g.projectiles.push({
         x: t.x + Math.cos(t.angle) * 16, y: t.y + Math.sin(t.angle) * 16,
-        target, lx: target.x, ly: target.y,
+        target: tk, lx: tk.x, ly: tk.y,
         speed: t.def.projSpeed * TILE,
         dmg, crit, kind: t.type, src: t,
         splash: st.splash, stun: st.stun, pierce: st.pierce,
         slowFrac: st.slow, slowDur: st.slowDur, freeze: st.freeze,
         poisonDps: st.poisonDps, poisonDur: st.poisonDur, toxicSlow: st.toxicSlow,
+        shatter: st.shatter, plague: st.plague, meltArmor: st.meltArmor, shieldShred: st.shieldShred,
         delay: k * 0.06,
       });
     }
@@ -382,13 +456,15 @@ const Game = {
     if (e.dead) return;
     opts = opts || {};
     if (g.mods.exec && e.hp < e.maxHp * 0.35) dmg *= 1.25;
+    if (e.shatterUntil > this.time && e.shatterMul) dmg *= 1 + e.shatterMul;
     if (!opts.pierce && !opts.poison && e.armor > 0) dmg *= (1 - e.armor);
     if (opts.poison) {
       e.hp -= dmg; // toxins seep past shields
     } else if (e.shield > 0) {
-      const absorbed = Math.min(e.shield, dmg);
+      const shred = opts.shieldShred || 1;
+      const absorbed = Math.min(e.shield, dmg * shred);
       e.shield -= absorbed;
-      dmg -= absorbed;
+      dmg -= absorbed / shred;
       e.hp -= dmg;
     } else {
       e.hp -= dmg;
@@ -423,6 +499,20 @@ const Game = {
       for (let i = 0; i < e.def.spawnCount; i++) {
         this.spawnEnemy(e.def.spawns, e.waveNo, Math.max(0, e.dist - 6 * i));
       }
+    }
+    // plaguebearer: poisoned enemies infect their neighbors on death
+    if (e.plague && e.poisons.length) {
+      const dps = Math.max(...e.poisons.map(p => p.dps)) * 0.75;
+      const r2 = e.plague * TILE;
+      let infected = 0;
+      for (const o of g.enemies) {
+        if (o.dead || o === e) continue;
+        if (Math.hypot(o.x - e.x, o.y - e.y) > r2) continue;
+        o.poisons.push({ dps, until: this.time + 3 });
+        if (o.poisons.length > 6) o.poisons.shift();
+        infected++;
+      }
+      if (infected) this.ring(e.x, e.y, r2, '#a3e635');
     }
   },
 
@@ -615,17 +705,31 @@ const Game = {
     }
     const e = p.target;
     if (!e || e.dead) return;
-    this.damageEnemy(e, p.dmg, { pierce: p.pierce, crit: p.crit, src: p.src, showText: true });
+    this.damageEnemy(e, p.dmg, { pierce: p.pierce, crit: p.crit, src: p.src, showText: true, shieldShred: p.shieldShred });
     Sfx.hit();
     if (p.kind === 'frost') {
-      if (e.def.ccImmune) {
-        if (Math.random() < 0.25) this.addText(e.x, e.y - e.r - 6, 'IMMUNE', '#e2e8f0', 10);
-      } else {
-        e.slowFrac = Math.max(e.slowFrac, p.slowFrac);
-        e.slowUntil = this.time + p.slowDur;
+      const chill = (o) => {
+        if (o.def.ccImmune) {
+          if (o === e && Math.random() < 0.25) this.addText(o.x, o.y - o.r - 6, 'IMMUNE', '#e2e8f0', 10);
+          return;
+        }
+        o.slowFrac = Math.max(o.slowFrac, p.slowFrac);
+        o.slowUntil = this.time + p.slowDur;
         if (p.freeze > 0 && Math.random() < p.freeze) {
-          e.frozenUntil = this.time + 1;
-          this.ring(e.x, e.y, 24, '#67e8f9');
+          o.frozenUntil = this.time + 1;
+          if (p.shatter) { o.shatterMul = p.shatter; o.shatterUntil = o.frozenUntil; }
+          this.ring(o.x, o.y, 24, '#67e8f9');
+        }
+      };
+      chill(e);
+      // glacier: the bolt bursts, chilling everything in the splash area
+      if (p.splash > 0) {
+        this.ring(p.lx, p.ly, p.splash, '#67e8f9');
+        for (const o of g.enemies) {
+          if (o.dead || o === e) continue;
+          if (Math.hypot(o.x - p.lx, o.y - p.ly) > p.splash) continue;
+          this.damageEnemy(o, p.dmg, { pierce: p.pierce, crit: p.crit, src: p.src });
+          chill(o);
         }
       }
       this.burst(p.lx, p.ly, '#67e8f9', 4, 1.5);
@@ -633,6 +737,11 @@ const Game = {
       e.poisons.push({ dps: p.poisonDps, until: this.time + p.poisonDur });
       if (e.poisons.length > 6) e.poisons.shift();
       e.toxicSlow = p.toxicSlow;
+      if (p.meltArmor && e.armor > 0) {
+        e.armor = Math.max(0, e.armor - p.meltArmor);
+        this.addText(e.x, e.y - e.r - 6, 'ARMOR MELT', '#a3e635', 10);
+      }
+      if (p.plague) e.plague = p.plague;
       this.burst(p.lx, p.ly, '#a3e635', 4, 1.5);
     } else if (p.kind === 'sniper') {
       this.burst(p.lx, p.ly, '#f472b6', 5, 2);
@@ -901,9 +1010,9 @@ const Game = {
 
     // lightning arcs
     for (const a of g.arcs) {
-      ctx.strokeStyle = `rgba(196,181,253,${Math.min(1, a.ttl / 0.1)})`;
-      ctx.lineWidth = 2.5;
-      ctx.shadowColor = '#a78bfa'; ctx.shadowBlur = 10;
+      ctx.strokeStyle = a.color || `rgba(196,181,253,${Math.min(1, a.ttl / 0.1)})`;
+      ctx.lineWidth = a.width || 2.5;
+      ctx.shadowColor = a.shadow || '#a78bfa'; ctx.shadowBlur = 10;
       ctx.beginPath();
       ctx.moveTo(a.pts[0].x, a.pts[0].y);
       for (let i = 1; i < a.pts.length; i++) ctx.lineTo(a.pts[i].x, a.pts[i].y);
@@ -1028,11 +1137,32 @@ const Game = {
         break;
     }
     ctx.restore();
+    // tier-5 specialization: gold halo + variant icon
+    if (t.variant && !ghost) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,210,63,.75)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.lineDashOffset = -this.time * 14;
+      ctx.beginPath(); ctx.arc(t.x, t.y, 20, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      const v = this.variantOf(t);
+      if (v) {
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(v.icon, t.x, t.y - 24);
+      }
+      ctx.restore();
+    }
     // level pips
     if (!ghost) {
       ctx.fillStyle = '#ffd23f';
       for (let i = 0; i < lvl; i++) {
         ctx.beginPath(); ctx.arc(t.x - 12 + i * 8, t.y + 21, 2.4, 0, Math.PI * 2); ctx.fill();
+      }
+      if (t.variant) {
+        ctx.fillStyle = '#7c6cff';
+        ctx.beginPath(); ctx.arc(t.x - 12 + lvl * 8, t.y + 21, 3.2, 0, Math.PI * 2); ctx.fill();
       }
       if (this.g.selected === t) {
         ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 2;

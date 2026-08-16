@@ -41,6 +41,10 @@ function autoPlay(mapId, diffKey, label, tech) {
     while (guard++ < 40) {
       const nearPath = g.towers.filter(t => distToPath(g, t.tx, t.ty) <= 1.6 && t.level < 4)
         .sort((a, b) => a.level - b.level);
+      // tier-5: specialize a maxed tower when affordable
+      const specTarget = g.towers.find(t => t.level === 4 && !t.variant && t.def.variants && g.mods.specs[t.type]
+        && g.gold >= Game.variantCost(t.def.variants[0]) + 80);
+      if (specTarget && g.towers.length >= 8) { Game.applyVariant(specTarget, specTarget.def.variants[0].id); continue; }
       const want = picks[towerCount % picks.length];
       const cost = Game.towerCost(want);
       const upTarget = nearPath[0];
@@ -69,3 +73,4 @@ autoPlay('ashen', 'normal', 'ashen/normal     ');
 autoPlay('shattered', 'normal', 'shattered/normal ');
 autoPlay('verdant', 'hard', 'verdant/hard+tech ', { o_dmg: 3, o_rate: 3, d_lives: 3, e_gold: 3, e_bounty: 3, o_crit: 2 });
 autoPlay('verdant', 'nightmare', 'verdant/nm+tech   ', { o_dmg: 3, o_rate: 3, o_crit: 3, o_range: 2, o_exec: 1, d_lives: 3, d_repair: 2, e_gold: 3, e_bounty: 3, e_int: 2, u_tesla: 1 });
+autoPlay('shattered', 'nightmare', 'shattered/nm+spec', { o_dmg: 3, o_dmg2: 2, o_rate: 3, o_crit: 3, o_critx: 2, o_range: 2, o_splash: 2, o_exec: 1, o_omega: 1, d_lives: 3, d_lives2: 2, d_repair: 2, d_frost: 2, e_gold: 3, e_bounty: 3, e_int: 2, u_tesla: 1, s_arrow: 1, s_cannon: 1, s_frost: 1, s_sniper: 1 });
